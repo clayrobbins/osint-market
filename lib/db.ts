@@ -98,6 +98,35 @@ export async function initDb() {
   await client.execute(`CREATE INDEX IF NOT EXISTS idx_submissions_bounty ON submissions(bounty_id)`);
   await client.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_bounty ON transactions(bounty_id)`);
   
+  // Reputation tables
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS reputation (
+      wallet TEXT PRIMARY KEY,
+      total_bounties INTEGER DEFAULT 0,
+      successful_bounties INTEGER DEFAULT 0,
+      failed_bounties INTEGER DEFAULT 0,
+      total_earnings REAL DEFAULT 0,
+      current_streak INTEGER DEFAULT 0,
+      best_streak INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+  
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS badges (
+      id TEXT PRIMARY KEY,
+      wallet TEXT NOT NULL,
+      badge_type TEXT NOT NULL,
+      earned_at TEXT NOT NULL,
+      bounty_id TEXT,
+      FOREIGN KEY (wallet) REFERENCES reputation(wallet)
+    )
+  `);
+  
+  await client.execute(`CREATE INDEX IF NOT EXISTS idx_badges_wallet ON badges(wallet)`);
+  await client.execute(`CREATE INDEX IF NOT EXISTS idx_reputation_earnings ON reputation(total_earnings DESC)`);
+  
   console.log('Database initialized');
 }
 

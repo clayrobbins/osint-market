@@ -4,7 +4,7 @@ import {
   PAYOUT_FEE_PERCENT,
   MIN_BOUNTY_SOL,
   calculateFees,
-  transferSolFromEscrow,
+  transferFromEscrow,
   verifyDeposit,
   generateDepositInstructions,
 } from './solana';
@@ -102,49 +102,14 @@ export async function processPayout(
   const escrowedAmount = bounty.reward.amount * (1 - CREATION_FEE_PERCENT);
   const actualPayout = escrowedAmount - feeAmount;
   
-  // Transfer to hunter (if we have escrow keypair, otherwise simulate)
-  if (bounty.reward.token === 'SOL') {
-    const transfer = await transferSolFromEscrow(hunterWallet, actualPayout);
-    
-    if (!transfer.success) {
-      return { success: false, error: transfer.error };
-    }
-    
-    // Record payout transaction
-    const payoutRecord = await createTransaction({
-      type: 'escrow_release',
-      bounty_id: bounty.id,
-      amount: actualPayout,
-      token: bounty.reward.token,
-      from_wallet: TREASURY_WALLET.toBase58(),
-      to_wallet: hunterWallet,
-      tx_signature: transfer.signature,
-      status: 'confirmed',
-    });
-    
-    // Record payout fee
-    await createTransaction({
-      type: 'fee_collection',
-      bounty_id: bounty.id,
-      amount: feeAmount,
-      token: bounty.reward.token,
-      to_wallet: TREASURY_WALLET.toBase58(),
-      fee_amount: feeAmount,
-      status: 'confirmed',
-    });
-    
-    return {
-      success: true,
-      payoutTx: transfer.signature,
-      netAmount: actualPayout,
-      feeAmount,
-    };
+  // Transfer to hunter (supports both SOL and USDC)
+  const transfer = await transferFromEscrow(hunterWallet, actualPayout, bounty.reward.token);
+  
+  if (!transfer.success) {
+    return { success: false, error: transfer.error };
   }
   
-  // For USDC, similar logic would apply with SPL token transfers
-  // For hackathon, we'll simulate USDC transfers
-  const simulatedTx = `simulated_usdc_${Date.now()}`;
-  
+  // Record payout transaction
   await createTransaction({
     type: 'escrow_release',
     bounty_id: bounty.id,
@@ -152,13 +117,24 @@ export async function processPayout(
     token: bounty.reward.token,
     from_wallet: TREASURY_WALLET.toBase58(),
     to_wallet: hunterWallet,
-    tx_signature: simulatedTx,
+    tx_signature: transfer.signature,
+    status: 'confirmed',
+  });
+  
+  // Record payout fee
+  await createTransaction({
+    type: 'fee_collection',
+    bounty_id: bounty.id,
+    amount: feeAmount,
+    token: bounty.reward.token,
+    to_wallet: TREASURY_WALLET.toBase58(),
+    fee_amount: feeAmount,
     status: 'confirmed',
   });
   
   return {
     success: true,
-    payoutTx: simulatedTx,
+    payoutTx: transfer.signature,
     netAmount: actualPayout,
     feeAmount,
   };
@@ -173,33 +149,11 @@ export async function processRefund(
   // Refund the escrowed amount (original minus creation fee, which is non-refundable)
   const escrowedAmount = bounty.reward.amount * (1 - CREATION_FEE_PERCENT);
   
-  if (bounty.reward.token === 'SOL') {
-    const transfer = await transferSolFromEscrow(bounty.poster_wallet, escrowedAmount);
-    
-    if (!transfer.success) {
-      return { success: false, error: transfer.error };
-    }
-    
-    await createTransaction({
-      type: 'escrow_refund',
-      bounty_id: bounty.id,
-      amount: escrowedAmount,
-      token: bounty.reward.token,
-      from_wallet: TREASURY_WALLET.toBase58(),
-      to_wallet: bounty.poster_wallet,
-      tx_signature: transfer.signature,
-      status: 'confirmed',
-    });
-    
-    return {
-      success: true,
-      payoutTx: transfer.signature,
-      netAmount: escrowedAmount,
-    };
-  }
+  const transfer = await transferFromEscrow(bounty.poster_wallet, escrowedAmount, bounty.reward.token);
   
-  // Simulated for other tokens
-  const simulatedTx = `simulated_refund_${Date.now()}`;
+  if (!transfer.success) {
+    return { success: false, error: transfer.error };
+  }
   
   await createTransaction({
     type: 'escrow_refund',
@@ -208,13 +162,13 @@ export async function processRefund(
     token: bounty.reward.token,
     from_wallet: TREASURY_WALLET.toBase58(),
     to_wallet: bounty.poster_wallet,
-    tx_signature: simulatedTx,
+    tx_signature: transfer.signature,
     status: 'confirmed',
   });
   
   return {
     success: true,
-    payoutTx: simulatedTx,
+    payoutTx: transfer.signature,
     netAmount: escrowedAmount,
   };
 }

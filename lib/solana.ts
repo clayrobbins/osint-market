@@ -119,6 +119,68 @@ export async function transferSolFromEscrow(
   }
 }
 
+// Transfer USDC from escrow to recipient
+export async function transferUsdcFromEscrow(
+  recipient: string,
+  amount: number
+): Promise<{ success: boolean; signature?: string; error?: string }> {
+  const escrowKeypair = getEscrowKeypair();
+  
+  if (!escrowKeypair) {
+    // Simulation mode
+    console.log(`[SIMULATED] Transfer ${amount} USDC to ${recipient}`);
+    return { 
+      success: true, 
+      signature: `simulated_usdc_${Date.now()}_${Math.random().toString(36).slice(2)}` 
+    };
+  }
+  
+  try {
+    const connection = getConnection();
+    const recipientPubkey = new PublicKey(recipient);
+    
+    // Get token accounts
+    const escrowTokenAccount = await getAssociatedTokenAddress(USDC_MINT, escrowKeypair.publicKey);
+    const recipientTokenAccount = await getAssociatedTokenAddress(USDC_MINT, recipientPubkey);
+    
+    const transaction = new Transaction().add(
+      createTransferInstruction(
+        escrowTokenAccount,
+        recipientTokenAccount,
+        escrowKeypair.publicKey,
+        Math.floor(amount * 1_000_000) // USDC has 6 decimals
+      )
+    );
+    
+    const signature = await sendAndConfirmTransaction(connection, transaction, [escrowKeypair]);
+    
+    return { success: true, signature };
+  } catch (error: any) {
+    console.error('USDC transfer error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Generic transfer from escrow (supports SOL, USDC, and simulates others)
+export async function transferFromEscrow(
+  recipient: string,
+  amount: number,
+  token: string
+): Promise<{ success: boolean; signature?: string; error?: string }> {
+  if (token === 'USDC') {
+    return transferUsdcFromEscrow(recipient, amount);
+  }
+  if (token === 'SOL') {
+    return transferSolFromEscrow(recipient, amount);
+  }
+  // Simulate transfer for other tokens (META, ORE, etc.)
+  console.log(`[SIMULATED] Transfer ${amount} ${token} to ${recipient}`);
+  return { 
+    success: true, 
+    signature: `simulated_${token.toLowerCase()}_${Date.now()}_${Math.random().toString(36).slice(2)}` 
+  };
+}
+
 // Verify a SOL deposit was made to escrow
 export async function verifyDeposit(
   signature: string,

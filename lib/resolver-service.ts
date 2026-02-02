@@ -4,6 +4,7 @@ import { getSubmissionByBounty } from './repositories/submissions';
 import { createResolution } from './repositories/resolutions';
 import { processPayout, processRefund } from './escrow';
 import { buildEvaluationPrompt, parseEvaluationResponse } from './resolver';
+import { recordSuccess, recordFailure } from './reputation';
 import type { Bounty, Submission, Resolution } from './types';
 
 // Initialize Anthropic client
@@ -101,6 +102,31 @@ export async function resolveSubmission(bountyId: string): Promise<ResolverResul
     
     // Update bounty status
     await updateBountyStatus(bountyId, 'resolved');
+    
+    // Update hunter reputation
+    try {
+      if (evaluation.approved) {
+        // Calculate completion time
+        const claimedAt = new Date(bounty.claimed_at || bounty.created_at).getTime();
+        const completionTimeMs = Date.now() - claimedAt;
+        
+        const newBadges = await recordSuccess(
+          submission.agent_wallet,
+          bountyId,
+          bounty.reward.amount,
+          completionTimeMs
+        );
+        
+        if (newBadges.length > 0) {
+          console.log(`[Resolver] New badges awarded to ${submission.agent_wallet}:`, newBadges);
+        }
+      } else {
+        await recordFailure(submission.agent_wallet);
+      }
+    } catch (repError) {
+      console.error('[Resolver] Failed to update reputation:', repError);
+      // Don't fail the resolution if reputation update fails
+    }
     
     return {
       success: true,

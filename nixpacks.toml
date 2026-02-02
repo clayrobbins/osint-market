@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "npm-10_x"]
+nixPkgs = ["nodejs_20", "npm-10_x", "python3", "gcc", "gnumake", "pkg-config", "libudev-zero"]
 
 [phases.install]
-cmds = ["npm install --legacy-peer-deps"]
+cmds = ["npm install --legacy-peer-deps --ignore-scripts || npm install --legacy-peer-deps --ignore-optional"]

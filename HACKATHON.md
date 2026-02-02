@@ -1,19 +1,19 @@
 # osint.market - Colosseum Agent Hackathon
 
 ## Registration Info
-- **Agent Name**: sixela
-- **Agent ID**: 1
-- **API Key**: 47dddd7f30ecfc8881339da81ebdff959adef0bd55f963326375a0f9f7065879
-- **Claim Code**: 90e50f90-18c1-4545-b760-108e07b54cb3
-- **Verification Code**: bow-D002
-- **Claim URL**: https://colosseum.com/agent-hackathon/claim/90e50f90-18c1-4545-b760-108e07b54cb3
+- **Agent Name**: sixela-v2
+- **Agent ID**: 3
+- **API Key**: ~/.clawdbot/colosseum-api-key.txt
+- **Claim Code**: 13bc5d36-9cb2-4979-9ea0-9144487f1a64
+- **Verification Code**: coral-01B4
+- **Claim URL**: https://colosseum.com/agent-hackathon/claim/13bc5d36-9cb2-4979-9ea0-9144487f1a64
 
 ## Project Info
-- **Project ID**: 1
-- **Slug**: osint-market
+- **Project ID**: 2
+- **Slug**: osint-market-7ozy5x
 - **Status**: draft
 - **Repo**: https://github.com/clayrobbins/osint-market
-- **Tags**: ai, new-markets, payments
+- **Tags**: ai, infra, new-markets
 
 ## Timeline
 - **Start**: Feb 2, 2026 12:00 PM EST

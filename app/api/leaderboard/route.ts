@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { initDb, getDb } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 let dbInitialized = false;
 async function ensureDb() {
   if (!dbInitialized) {

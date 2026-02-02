@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { initDb, getDb } from '@/lib/db';
 
 let dbInitialized = false;

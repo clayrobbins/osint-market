@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { initDb } from '@/lib/db';
 import { triggerResolution } from '@/lib/resolver-service';
 

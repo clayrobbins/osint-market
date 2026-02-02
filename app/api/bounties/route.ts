@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { initDb } from '@/lib/db';
 import { listBounties, createBounty } from '@/lib/repositories/bounties';
 import type { BountyStatus, CreateBountyRequest, BountyListResponse } from '@/lib/types';

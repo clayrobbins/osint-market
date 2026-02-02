@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p ${PORT:-3000}",
     "lint": "next lint",
     "seed": "curl -X POST http://localhost:3000/api/seed",
     "demo": "npx ts-node scripts/demo-data.ts"

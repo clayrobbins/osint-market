@@ -3,3 +3,6 @@ nixPkgs = ["nodejs_20", "npm-10_x", "python3", "gcc", "gnumake", "pkg-config", "
 
 [phases.install]
 cmds = ["npm install --legacy-peer-deps --ignore-scripts || npm install --legacy-peer-deps --ignore-optional"]
+
+[start]
+cmd = "npm run start"

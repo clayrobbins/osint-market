@@ -256,3 +256,49 @@ export async function getBountiesByStatus(): Promise<Record<BountyStatus, number
   
   return counts as Record<BountyStatus, number>;
 }
+
+// Delete a bounty (for cleanup or failed creation rollback)
+export async function deleteBounty(bountyId: string): Promise<boolean> {
+  const db = getDb();
+  const result = await db.execute({
+    sql: 'DELETE FROM bounties WHERE id = ?',
+    args: [bountyId],
+  });
+  return result.rowsAffected > 0;
+}
+
+// Mark bounty as disputed
+export async function disputeBounty(
+  bountyId: string, 
+  disputeReason: string
+): Promise<boolean> {
+  const db = getDb();
+  const result = await db.execute({
+    sql: `UPDATE bounties SET status = 'disputed' WHERE id = ? AND status = 'resolved'`,
+    args: [bountyId],
+  });
+  return result.rowsAffected > 0;
+}
+
+// Get all disputed bounties for admin review
+export async function getDisputedBounties(): Promise<Bounty[]> {
+  const db = getDb();
+  const result = await db.execute({
+    sql: `SELECT * FROM bounties WHERE status = 'disputed' ORDER BY created_at DESC`,
+    args: [],
+  });
+  return result.rows.map(row => rowToBounty(row as unknown as BountyRow));
+}
+
+// Admin: manually resolve dispute
+export async function resolveDispute(
+  bountyId: string, 
+  newStatus: 'resolved' | 'open'
+): Promise<boolean> {
+  const db = getDb();
+  const result = await db.execute({
+    sql: 'UPDATE bounties SET status = ? WHERE id = ? AND status = ?',
+    args: [newStatus, bountyId, 'disputed'],
+  });
+  return result.rowsAffected > 0;
+}

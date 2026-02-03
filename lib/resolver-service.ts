@@ -5,6 +5,7 @@ import { createResolution } from './repositories/resolutions';
 import { processPayout, processRefund } from './escrow';
 import { buildEvaluationPrompt, parseEvaluationResponse, RESOLVER_SYSTEM_PROMPT } from './resolver';
 import { recordSuccess, recordFailure } from './reputation';
+import { alerts } from './alerts';
 import type { Bounty, Submission, Resolution } from './types';
 
 // Initialize Anthropic client
@@ -90,6 +91,8 @@ export async function resolveSubmission(bountyId: string): Promise<ResolverResul
     const responseText = await callClaudeWithRetry(prompt);
     if (!responseText) {
       console.error('[Resolver] All retry attempts failed');
+      // Alert admin about resolver failure
+      alerts.resolverFailed(bountyId, 'Claude API unavailable after all retry attempts');
       return { success: false, error: 'Resolver API unavailable after retries. Queued for manual review.' };
     }
     
@@ -126,6 +129,8 @@ Your original response was: ${responseText.slice(0, 500)}`;
       const payout = await processPayout(bounty, submission.agent_wallet);
       if (!payout.success) {
         console.error('[Resolver] Payout failed:', payout.error);
+        // Alert admin - hunter is owed money!
+        alerts.paymentFailed(bountyId, submission.agent_wallet, payout.error || 'Unknown error', bounty.reward.amount);
         // DO NOT record as approved if payment failed
         return { 
           success: false, 
@@ -139,6 +144,8 @@ Your original response was: ${responseText.slice(0, 500)}`;
       const refund = await processRefund(bounty);
       if (!refund.success) {
         console.error('[Resolver] Refund failed:', refund.error);
+        // Alert admin - poster should get refund
+        alerts.refundFailed(bountyId, bounty.poster_wallet, refund.error || 'Unknown error', bounty.reward.amount);
         // Rejection can proceed even if refund fails (funds stay in escrow)
       } else {
         console.log(`[Resolver] Refunded ${refund.netAmount} ${bounty.reward.token} to ${bounty.poster_wallet}`);

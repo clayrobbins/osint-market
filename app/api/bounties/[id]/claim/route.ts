@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initDb } from '@/lib/db';
 import { getBounty, claimBounty, getClaimedBountyByAgent } from '@/lib/repositories/bounties';
 import { authenticate, isValidSolanaAddress } from '@/lib/auth';
+import { checkRateLimit, getIdentifier, rateLimitHeaders } from '@/lib/rate-limit';
 import type { ClaimRequest, ClaimResponse } from '@/lib/types';
 
 let dbInitialized = false;
@@ -17,10 +18,21 @@ const REQUIRE_AUTH = process.env.SKIP_AUTH !== 'true';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   await ensureDb();
-  const { id } = params;
+  const { id } = await params;
+  
+  // Rate limit check
+  const identifier = getIdentifier(request);
+  const rateLimit = checkRateLimit(identifier, 'bounty-claim');
+  
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many claim requests. Please wait before trying again.' },
+      { status: 429, headers: rateLimitHeaders(rateLimit) }
+    );
+  }
   
   try {
     const body: ClaimRequest & { message?: string; hunter_wallet?: string } = await request.json();

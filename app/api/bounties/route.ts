@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 import { initDb } from '@/lib/db';
-import { listBounties, createBounty } from '@/lib/repositories/bounties';
+import { listBounties, createBounty, deleteBounty } from '@/lib/repositories/bounties';
 import { processDeposit, FEE_STRUCTURE, ESCROW_WALLET } from '@/lib/escrow';
 import { sanitizeBountyInput } from '@/lib/sanitize';
+import { checkRateLimit, getIdentifier, rateLimitHeaders } from '@/lib/rate-limit';
+import { alerts } from '@/lib/alerts';
 import type { BountyStatus, CreateBountyRequest, BountyListResponse } from '@/lib/types';
 
 // Supported tokens
@@ -48,6 +50,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   await ensureDb();
+  
+  // Rate limit check
+  const identifier = getIdentifier(request);
+  const rateLimit = checkRateLimit(identifier, 'bounty-create');
+  
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many bounty creation requests. Please wait before trying again.' },
+      { status: 429, headers: rateLimitHeaders(rateLimit) }
+    );
+  }
   
   try {
     const body: CreateBountyRequest & { escrow_tx?: string; poster_wallet?: string } = await request.json();
@@ -125,20 +138,27 @@ export async function POST(request: NextRequest) {
       );
       
       if (!depositResult.success) {
-        // TODO: Delete the bounty or mark as failed
+        // Rollback: delete the bounty since deposit verification failed
+        await deleteBounty(bounty.id);
+        console.error(`[Bounty] Deleted bounty ${bounty.id} due to failed deposit verification: ${depositResult.error}`);
+        
         return NextResponse.json({ 
-          created: true, 
-          bounty_id: bounty.id,
-          bounty,
-          escrow_status: 'failed',
+          created: false, 
+          error: 'Deposit verification failed. Bounty was not created.',
           escrow_error: depositResult.error,
           deposit_instructions: {
             recipient: ESCROW_WALLET.toBase58(),
             amount: body.reward.amount,
             token: body.reward.token,
             fee: `${FEE_STRUCTURE.creation}% creation fee`,
+            note: 'Please send the deposit first, then create the bounty with the transaction signature.',
           },
-        }, { status: 201 });
+        }, { status: 400, headers: rateLimitHeaders(rateLimit) });
+      }
+      
+      // Alert for large bounties (monitoring)
+      if (body.reward.amount >= 10) {
+        alerts.largeBountyCreated(bounty.id, poster_wallet, body.reward.amount, body.reward.token);
       }
       
       return NextResponse.json({ 
@@ -149,7 +169,7 @@ export async function POST(request: NextRequest) {
         escrow_tx: body.escrow_tx,
         net_amount: depositResult.netAmount,
         fee_amount: depositResult.feeAmount,
-      }, { status: 201 });
+      }, { status: 201, headers: rateLimitHeaders(rateLimit) });
     }
     
     // No escrow_tx - return deposit instructions
@@ -165,7 +185,7 @@ export async function POST(request: NextRequest) {
         fee: `${FEE_STRUCTURE.creation}% creation fee (${body.reward.amount * FEE_STRUCTURE.creation / 100} ${body.reward.token})`,
         note: 'Send deposit to recipient address, then call PUT /api/bounties/{id}/confirm with the transaction signature',
       },
-    }, { status: 201 });
+    }, { status: 201, headers: rateLimitHeaders(rateLimit) });
 
   } catch (error) {
     console.error('Error creating bounty:', error);

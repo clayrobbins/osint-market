@@ -3,6 +3,7 @@ import { initDb } from '@/lib/db';
 import { getBounty, updateBountyStatus } from '@/lib/repositories/bounties';
 import { createSubmission } from '@/lib/repositories/submissions';
 import { sanitizeInput, sanitizeUrl } from '@/lib/sanitize';
+import { checkRateLimit, getIdentifier, rateLimitHeaders } from '@/lib/rate-limit';
 import type { SubmitRequest, SubmitResponse } from '@/lib/types';
 
 let dbInitialized = false;
@@ -15,10 +16,21 @@ async function ensureDb() {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   await ensureDb();
-  const { id } = params;
+  const { id } = await params;
+  
+  // Rate limit check
+  const identifier = getIdentifier(request);
+  const rateLimit = checkRateLimit(identifier, 'bounty-submit');
+  
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many submission requests. Please wait before trying again.' },
+      { status: 429, headers: rateLimitHeaders(rateLimit) }
+    );
+  }
   
   try {
     const body: SubmitRequest = await request.json();

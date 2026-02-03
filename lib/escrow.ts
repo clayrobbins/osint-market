@@ -6,6 +6,7 @@ import {
   MIN_BOUNTY_SOL,
   calculateFees,
   transferFromEscrow,
+  transferFeeToTreasury,
   verifyDeposit,
   generateDepositInstructions,
 } from './solana';
@@ -118,11 +119,14 @@ export async function processPayout(
     bounty_id: bounty.id,
     amount: actualPayout,
     token: bounty.reward.token,
-    from_wallet: TREASURY_WALLET.toBase58(),
+    from_wallet: ESCROW_WALLET.toBase58(),
     to_wallet: hunterWallet,
     tx_signature: transfer.signature,
     status: 'confirmed',
   });
+  
+  // Transfer fee to treasury (separate from escrow)
+  const feeTransfer = await transferFeeToTreasury(feeAmount, bounty.reward.token);
   
   // Record payout fee
   await createTransaction({
@@ -130,14 +134,17 @@ export async function processPayout(
     bounty_id: bounty.id,
     amount: feeAmount,
     token: bounty.reward.token,
+    from_wallet: ESCROW_WALLET.toBase58(),
     to_wallet: TREASURY_WALLET.toBase58(),
     fee_amount: feeAmount,
+    tx_signature: feeTransfer.signature || 'fee_retained',
     status: 'confirmed',
   });
   
   return {
     success: true,
     payoutTx: transfer.signature,
+    feeTx: feeTransfer.signature,
     netAmount: actualPayout,
     feeAmount,
   };

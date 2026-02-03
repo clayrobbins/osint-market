@@ -15,11 +15,13 @@ import {
 } from '@solana/spl-token';
 import bs58 from 'bs58';
 
-// Constants - use env var for escrow wallet, fallback to hardcoded
+// Constants - use env vars for wallets, fallback to hardcoded
 export const ESCROW_WALLET = new PublicKey(
   process.env.ESCROW_WALLET_ADDRESS || 'EwwpAe2XkBbMAftrX9m1PEu3mEnL6Gordc49EWKRURau'
 );
-export const TREASURY_WALLET = ESCROW_WALLET; // Alias for backwards compat
+export const TREASURY_WALLET = new PublicKey(
+  process.env.TREASURY_WALLET_ADDRESS || '7G7co8fLDdddRNbFwPWH9gots93qB4EXPwBoshd3x2va'
+);
 export const CREATION_FEE_PERCENT = 0.025; // 2.5%
 export const PAYOUT_FEE_PERCENT = 0.025;   // 2.5%
 export const MIN_BOUNTY_SOL = 0.1;
@@ -120,6 +122,21 @@ export async function transferSolFromEscrow(
     console.error('SOL transfer error:', error);
     return { success: false, error: error.message };
   }
+}
+
+// Transfer fee from escrow to treasury wallet
+export async function transferFeeToTreasury(
+  amount: number,
+  token: string
+): Promise<{ success: boolean; signature?: string; error?: string }> {
+  // Skip if treasury is same as escrow (backwards compat)
+  if (TREASURY_WALLET.equals(ESCROW_WALLET)) {
+    console.log(`[SKIP] Treasury == Escrow, fee stays in place`);
+    return { success: true, signature: 'fee_retained_in_escrow' };
+  }
+  
+  // Transfer fee to treasury
+  return transferFromEscrow(TREASURY_WALLET.toBase58(), amount, token);
 }
 
 // Transfer USDC from escrow to recipient

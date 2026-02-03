@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { initDb } from '@/lib/db';
 import { listBounties, createBounty } from '@/lib/repositories/bounties';
 import { processDeposit, FEE_STRUCTURE, ESCROW_WALLET } from '@/lib/escrow';
+import { sanitizeBountyInput } from '@/lib/sanitize';
 import type { BountyStatus, CreateBountyRequest, BountyListResponse } from '@/lib/types';
 
 // Supported tokens
@@ -95,14 +96,22 @@ export async function POST(request: NextRequest) {
     // Apply defaults for optional fields
     const deadline = body.deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // Default: 7 days
     const difficulty = body.difficulty || 'medium';
-    const tags = body.tags || [];
+    
+    // Sanitize user input to prevent XSS
+    const sanitized = sanitizeBountyInput({
+      question: body.question,
+      description: body.description,
+      tags: body.tags,
+    });
     
     // Create bounty first (to get ID)
     const bounty = await createBounty({
       ...body,
+      question: sanitized.question,
+      description: sanitized.description,
       deadline,
       difficulty,
-      tags,
+      tags: sanitized.tags,
       poster_wallet,
     });
     

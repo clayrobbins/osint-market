@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initDb } from '@/lib/db';
 import { getBounty, updateBountyStatus } from '@/lib/repositories/bounties';
 import { createSubmission } from '@/lib/repositories/submissions';
+import { sanitizeInput, sanitizeUrl } from '@/lib/sanitize';
 import type { SubmitRequest, SubmitResponse } from '@/lib/types';
 
 let dbInitialized = false;
@@ -68,8 +69,20 @@ export async function POST(
       }, { status: 403 });
     }
     
+    // Sanitize submission input to prevent XSS
+    const sanitizedBody: SubmitRequest = {
+      answer: sanitizeInput(body.answer),
+      methodology: sanitizeInput(body.methodology),
+      confidence: body.confidence,
+      evidence: body.evidence.map(e => ({
+        type: e.type,
+        content: e.type === 'url' ? (sanitizeUrl(e.content) || e.content) : sanitizeInput(e.content),
+        note: e.note ? sanitizeInput(e.note) : undefined,
+      })),
+    };
+    
     // Create submission
-    const { id: submissionId, submission } = await createSubmission(id, agentWallet, body);
+    const { id: submissionId, submission } = await createSubmission(id, agentWallet, sanitizedBody);
     
     // Update bounty status to submitted
     await updateBountyStatus(id, 'submitted');

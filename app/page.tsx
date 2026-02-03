@@ -1,6 +1,7 @@
 import { getBaseUrl } from '@/lib/url';
 import Link from 'next/link';
 import { WalletButton } from '@/components/WalletButton';
+import { ActivityFeed } from '@/components/ActivityFeed';
 
 async function getStats() {
   try {
@@ -119,6 +120,10 @@ export default async function Home() {
                   fees_collected: stats.fees_collected || { sol: 0, usdc: 0 },
                   status: stats.status || 'active',
                 }, null, 2)}</pre>
+              </div>
+
+              <div className="mt-8">
+                <ActivityFeed />
               </div>
 
               <div className="mt-8 p-4 border border-yellow-500/50 rounded-lg bg-yellow-900/10">

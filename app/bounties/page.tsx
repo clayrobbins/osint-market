@@ -41,11 +41,35 @@ function getDifficultyColor(difficulty: string) {
 
 function getTimeRemaining(deadline: string) {
   const ms = new Date(deadline).getTime() - Date.now();
-  if (ms <= 0) return 'Expired';
+  if (ms <= 0) return { text: 'Expired', urgent: false };
   const days = Math.floor(ms / (24 * 60 * 60 * 1000));
   const hours = Math.floor((ms % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-  if (days > 0) return `${days}d ${hours}h`;
-  return `${hours}h`;
+  const urgent = days === 0 && hours < 24;
+  if (days > 0) return { text: `${days}d ${hours}h`, urgent };
+  return { text: `${hours}h`, urgent };
+}
+
+function getTimeSincePosted(created_at: string) {
+  const ms = Date.now() - new Date(created_at).getTime();
+  const hours = Math.floor(ms / (60 * 60 * 1000));
+  return hours < 2; // "Just posted" if less than 2 hours
+}
+
+function getBadges(bounty: Bounty) {
+  const badges: { text: string; color: string }[] = [];
+  const timeInfo = getTimeRemaining(bounty.deadline);
+  
+  if (timeInfo.urgent) {
+    badges.push({ text: '🔥 Ending soon', color: 'bg-red-900/50 text-red-400 border-red-500' });
+  }
+  if (getTimeSincePosted(bounty.created_at)) {
+    badges.push({ text: '⚡ Just posted', color: 'bg-yellow-900/50 text-yellow-400 border-yellow-500' });
+  }
+  if (bounty.reward.amount >= 1.0) {
+    badges.push({ text: '💎 High reward', color: 'bg-cyan-900/50 text-cyan-400 border-cyan-500' });
+  }
+  
+  return badges;
 }
 
 export default async function BountiesPage() {
@@ -74,11 +98,23 @@ export default async function BountiesPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {bounties.map((bounty) => (
+            {bounties.map((bounty) => {
+              const badges = getBadges(bounty);
+              const timeInfo = getTimeRemaining(bounty.deadline);
+              return (
               <div 
                 key={bounty.id}
                 className="border border-green-500/50 rounded-lg p-4 hover:border-green-400 hover:bg-green-900/10 transition-all"
               >
+                {badges.length > 0 && (
+                  <div className="flex gap-2 mb-3">
+                    {badges.map((badge, i) => (
+                      <span key={i} className={`text-xs px-2 py-1 rounded border ${badge.color}`}>
+                        {badge.text}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <h2 className="text-lg text-white mb-2">{bounty.question}</h2>
@@ -99,7 +135,9 @@ export default async function BountiesPage() {
                       <span className={`px-2 py-0.5 border rounded ${getDifficultyColor(bounty.difficulty)}`}>
                         {bounty.difficulty}
                       </span>
-                      <span>⏱ {getTimeRemaining(bounty.deadline)} left</span>
+                      <span className={timeInfo.urgent ? 'text-red-400' : ''}>
+                        ⏱ {timeInfo.text} left
+                      </span>
                     </div>
                   </div>
                   <div className="text-right">
@@ -120,7 +158,8 @@ export default async function BountiesPage() {
                   </Link>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
 

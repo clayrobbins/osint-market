@@ -1,3 +1,4 @@
+import { getBaseUrl } from '@/lib/url';
 import Link from 'next/link';
 
 interface HunterEntry {
@@ -9,7 +10,7 @@ interface HunterEntry {
 
 async function getLeaderboard() {
   try {
-    const res = await fetch('http://localhost:3000/api/leaderboard', {
+    const res = await fetch(`${getBaseUrl()}/api/leaderboard`, {
       cache: 'no-store',
     });
     if (res.ok) return res.json();

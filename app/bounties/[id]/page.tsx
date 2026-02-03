@@ -1,3 +1,4 @@
+import { getBaseUrl } from '@/lib/url';
 import Link from 'next/link';
 import { WalletButton } from '@/components/WalletButton';
 
@@ -30,7 +31,7 @@ interface Bounty {
 
 async function getBounty(id: string): Promise<Bounty | null> {
   try {
-    const res = await fetch(`http://localhost:3000/api/bounties/${id}`, {
+    const res = await fetch(`${getBaseUrl()}/api/bounties/${id}`, {
       cache: 'no-store',
     });
     if (res.ok) return res.json();

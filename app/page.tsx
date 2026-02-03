@@ -1,9 +1,10 @@
+import { getBaseUrl } from '@/lib/url';
 import Link from 'next/link';
 import { WalletButton } from '@/components/WalletButton';
 
 async function getStats() {
   try {
-    const res = await fetch('http://localhost:3000/api/stats', { 
+    const res = await fetch(`${getBaseUrl()}/api/stats`, { 
       cache: 'no-store',
       next: { revalidate: 0 }
     });

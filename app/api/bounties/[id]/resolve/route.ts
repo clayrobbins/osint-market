@@ -4,6 +4,7 @@ import { getBounty, updateBountyStatus } from '@/lib/repositories/bounties';
 import { getSubmissionByBounty } from '@/lib/repositories/submissions';
 import { createResolution, getResolutionByBounty } from '@/lib/repositories/resolutions';
 import { createTransaction } from '@/lib/repositories/transactions';
+import { processPayout, processRefund } from '@/lib/escrow';
 import type { Resolution, ResolutionResponse } from '@/lib/types';
 
 let dbInitialized = false;
@@ -16,8 +17,6 @@ async function ensureDb() {
 
 // This endpoint is called by the resolver service
 const RESOLVER_SECRET = process.env.RESOLVER_SECRET || 'dev-resolver-secret';
-const TREASURY_WALLET = '7G7co8fLDdddRNbFwPWH9gots93qB4EXPwBoshd3x2va';
-const PAYOUT_FEE_PERCENT = 0.025; // 2.5%
 
 interface ResolveRequest {
   status: 'approved' | 'rejected';
@@ -71,46 +70,32 @@ export async function POST(
     let paymentTx: string | undefined;
     
     if (body.status === 'approved') {
-      // Calculate payout and fee
-      const grossAmount = bounty.reward.amount;
-      const feeAmount = grossAmount * PAYOUT_FEE_PERCENT;
-      const netAmount = grossAmount - feeAmount;
+      // Execute actual on-chain payout
+      const payoutResult = await processPayout(bounty, submission.agent_wallet);
       
-      // TODO: Actually execute payment via mcpay/Solana
-      // For now, record the transaction
-      const payoutTx = await createTransaction({
-        type: 'escrow_release',
-        bounty_id: id,
-        amount: netAmount,
-        token: bounty.reward.token,
-        to_wallet: submission.agent_wallet,
-        status: 'pending', // Will be confirmed after on-chain tx
-      });
+      if (!payoutResult.success) {
+        console.error('Payout failed:', payoutResult.error);
+        return NextResponse.json({ 
+          error: 'Payment execution failed',
+          details: payoutResult.error,
+        }, { status: 500 });
+      }
       
-      // Record fee collection
-      await createTransaction({
-        type: 'fee_collection',
-        bounty_id: id,
-        amount: feeAmount,
-        token: bounty.reward.token,
-        to_wallet: TREASURY_WALLET,
-        fee_amount: feeAmount,
-        status: 'pending',
-      });
-      
-      paymentTx = `pending_${payoutTx.id}`;
-      console.log(`Payment pending: ${netAmount} ${bounty.reward.token} to ${submission.agent_wallet}`);
-      console.log(`Fee: ${feeAmount} ${bounty.reward.token} to treasury`);
+      paymentTx = payoutResult.payoutTx;
+      console.log(`Payment confirmed: ${payoutResult.netAmount} ${bounty.reward.token} to ${submission.agent_wallet}`);
+      console.log(`Fee: ${payoutResult.feeAmount} ${bounty.reward.token} | Tx: ${paymentTx}`);
     } else {
-      // Rejected - refund escrow to poster (minus creation fee already taken)
-      await createTransaction({
-        type: 'escrow_refund',
-        bounty_id: id,
-        amount: bounty.reward.amount,
-        token: bounty.reward.token,
-        to_wallet: bounty.poster_wallet,
-        status: 'pending',
-      });
+      // Rejected - refund escrow to poster
+      const refundResult = await processRefund(bounty);
+      
+      if (!refundResult.success) {
+        console.error('Refund failed:', refundResult.error);
+        // Still resolve the bounty, but note the refund issue
+        paymentTx = `refund_failed_${Date.now()}`;
+      } else {
+        paymentTx = refundResult.payoutTx;
+        console.log(`Refund sent: ${refundResult.netAmount} ${bounty.reward.token} to ${bounty.poster_wallet}`);
+      }
     }
     
     // Create resolution record

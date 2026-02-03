@@ -15,8 +15,11 @@ import {
 } from '@solana/spl-token';
 import bs58 from 'bs58';
 
-// Constants
-export const TREASURY_WALLET = new PublicKey('7G7co8fLDdddRNbFwPWH9gots93qB4EXPwBoshd3x2va');
+// Constants - use env var for escrow wallet, fallback to hardcoded
+export const ESCROW_WALLET = new PublicKey(
+  process.env.ESCROW_WALLET_ADDRESS || 'CZqFagtQbJgivaEGfojMDoehC6YjxF5QKzbsJ7NnF2Mp'
+);
+export const TREASURY_WALLET = ESCROW_WALLET; // Alias for backwards compat
 export const CREATION_FEE_PERCENT = 0.025; // 2.5%
 export const PAYOUT_FEE_PERCENT = 0.025;   // 2.5%
 export const MIN_BOUNTY_SOL = 0.1;

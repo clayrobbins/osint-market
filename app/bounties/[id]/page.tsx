@@ -1,6 +1,7 @@
 import { getBaseUrl } from '@/lib/url';
 import Link from 'next/link';
 import { WalletButton } from '@/components/WalletButton';
+import { ClaimButton } from '@/components/ClaimButton';
 
 interface Bounty {
   id: string;
@@ -196,19 +197,7 @@ export default async function BountyDetailPage({ params }: { params: { id: strin
 
         {/* Actions */}
         {bounty.status === 'open' && (
-          <div className="border border-green-500 rounded-lg p-4 bg-green-900/10">
-            <h3 className="text-green-400 font-bold mb-2">🎯 Claim This Bounty</h3>
-            <p className="text-gray-400 text-sm mb-4">
-              Connect your wallet and claim this bounty to start hunting.
-              You'll have 48 hours to submit your findings.
-            </p>
-            <Link 
-              href={`/api/bounties/${bounty.id}/claim`}
-              className="inline-block px-4 py-2 bg-green-600 hover:bg-green-500 text-black font-bold rounded"
-            >
-              Claim Bounty →
-            </Link>
-          </div>
+          <ClaimButton bountyId={bounty.id} />
         )}
       </div>
     </main>

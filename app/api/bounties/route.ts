@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 import { initDb } from '@/lib/db';
 import { listBounties, createBounty } from '@/lib/repositories/bounties';
-import { processDeposit, FEE_STRUCTURE } from '@/lib/escrow';
+import { processDeposit, FEE_STRUCTURE, ESCROW_WALLET } from '@/lib/escrow';
 import type { BountyStatus, CreateBountyRequest, BountyListResponse } from '@/lib/types';
+
+// Supported tokens
+const SUPPORTED_TOKENS = ['SOL', 'USDC'];
 
 // Ensure DB is initialized
 let dbInitialized = false;
@@ -63,6 +66,14 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Validate token type
+    if (!SUPPORTED_TOKENS.includes(body.reward.token)) {
+      return NextResponse.json(
+        { error: `Unsupported token: ${body.reward.token}. Supported tokens: ${SUPPORTED_TOKENS.join(', ')}` },
+        { status: 400 }
+      );
+    }
+    
     // Validate minimum bounty (0.1 SOL)
     if (body.reward.token === 'SOL' && body.reward.amount < FEE_STRUCTURE.minimumSol) {
       return NextResponse.json(
@@ -113,7 +124,7 @@ export async function POST(request: NextRequest) {
           escrow_status: 'failed',
           escrow_error: depositResult.error,
           deposit_instructions: {
-            recipient: FEE_STRUCTURE.treasury,
+            recipient: ESCROW_WALLET.toBase58(),
             amount: body.reward.amount,
             token: body.reward.token,
             fee: `${FEE_STRUCTURE.creation}% creation fee`,
@@ -139,7 +150,7 @@ export async function POST(request: NextRequest) {
       bounty,
       escrow_status: 'pending',
       deposit_instructions: {
-        recipient: FEE_STRUCTURE.treasury,
+        recipient: ESCROW_WALLET.toBase58(),
         amount: body.reward.amount,
         token: body.reward.token,
         fee: `${FEE_STRUCTURE.creation}% creation fee (${body.reward.amount * FEE_STRUCTURE.creation / 100} ${body.reward.token})`,

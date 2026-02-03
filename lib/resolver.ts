@@ -8,16 +8,18 @@
 import type { Bounty, Submission, Resolution } from './types';
 
 interface EvaluationCriteria {
-  // Does the answer directly address the bounty question?
+  // Does the answer address the bounty question (partial counts)?
   answers_question: boolean;
-  // Is there at least one verifiable piece of evidence?
+  // Is there any supporting evidence or reasoning?
   has_evidence: boolean;
-  // Does the evidence support the answer?
+  // Does the evidence point toward the answer?
   evidence_supports_answer: boolean;
-  // Is the methodology reasonable?
+  // Is the methodology reasonable for OSINT?
   methodology_valid: boolean;
   // Confidence assessment (our assessment, not theirs)
   our_confidence: number;
+  // Payout percentage recommendation (50-100)
+  payout_percent: number;
 }
 
 interface EvaluationResult {
@@ -49,20 +51,34 @@ Methodology: ${submission.methodology}
 Submitter's Confidence: ${submission.confidence}%
 
 ## YOUR TASK
-Evaluate this submission objectively. Consider:
+Evaluate this submission with a PERMISSIVE lens. We want to reward effort and actionable intelligence.
 
-1. **Answers Question**: Does the answer directly address what was asked?
-2. **Has Evidence**: Is there at least one piece of verifiable evidence?
-3. **Evidence Quality**: Does the evidence actually support the claimed answer?
-4. **Methodology**: Is the described methodology reasonable for OSINT research?
-5. **Verification**: Could someone else verify this answer using the provided evidence?
+1. **Answers Question**: Does the answer address what was asked? Partial answers count!
+2. **Has Evidence**: Is there ANY supporting evidence or reasoning?
+3. **Evidence Quality**: Does evidence point toward the answer? Circumstantial is OK.
+4. **Methodology**: Did they do reasonable OSINT work?
+5. **Value Provided**: Would this info be useful to the poster?
 
-## RULES
-- You are OBJECTIVE. Don't favor approval or rejection.
-- Partial answers can be accepted if they substantially address the question.
-- Evidence doesn't need to be perfect, but must be relevant and verifiable.
-- If the answer is correct but evidence is weak, you may still approve with caveats.
-- If the answer seems fabricated or evidence doesn't support it, REJECT.
+## RULES - LEAN TOWARD APPROVAL
+- **APPROVE partial answers** that provide useful leads or narrow the search
+- **APPROVE circumstantial evidence** if the reasoning chain is logical
+- **APPROVE speculative conclusions** if clearly labeled and well-reasoned
+- **APPROVE negative findings** ("X doesn't exist" with search evidence)
+- **APPROVE low-confidence submissions** if methodology was solid
+- Evidence does NOT need to be perfect — good-faith effort matters
+- Only REJECT if: fabricated evidence, no real work done, or completely wrong answer
+
+## CONFIDENCE → PAYOUT MAPPING
+The resolver assigns confidence which maps to payout:
+- 90%+: Full payout (definitive answer with strong evidence)
+- 70-89%: Full payout (solid answer, reasonable evidence)
+- 50-69%: Full payout (useful leads, partial answer)
+- 30-49%: Partial payout consideration (speculative but valuable)
+- <30%: Reject (no useful information provided)
+
+## BIAS TOWARD HUNTERS
+When in doubt, APPROVE. Hunters took time to investigate. Reward good faith effort.
+The marketplace works better when hunters feel their work is valued.
 
 ## OUTPUT FORMAT
 Respond with JSON only:
@@ -73,10 +89,17 @@ Respond with JSON only:
     "has_evidence": true/false,
     "evidence_supports_answer": true/false,
     "methodology_valid": true/false,
-    "our_confidence": 0-100
+    "our_confidence": 0-100,
+    "payout_percent": 50-100
   },
   "reasoning": "2-3 sentence explanation of your decision"
-}`;
+}
+
+Note: payout_percent should be:
+- 100 for complete, well-evidenced answers
+- 75-99 for solid answers with minor gaps
+- 50-74 for useful partial answers or leads
+- Only reject (approved=false) if truly no value provided`;
 }
 
 /**

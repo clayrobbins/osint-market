@@ -119,3 +119,56 @@ export async function getTotalFeesCollected(): Promise<{ sol: number; usdc: numb
   
   return fees;
 }
+
+// List transactions with filters
+export async function listTransactions(options: {
+  bounty_id?: string;
+  wallet?: string;
+  type?: string;
+  status?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ transactions: Transaction[]; total: number }> {
+  const db = getDb();
+  const { bounty_id, wallet, type, status, limit = 50, offset = 0 } = options;
+  
+  let whereClauses: string[] = [];
+  let args: any[] = [];
+  
+  if (bounty_id) {
+    whereClauses.push('bounty_id = ?');
+    args.push(bounty_id);
+  }
+  if (wallet) {
+    whereClauses.push('(from_wallet = ? OR to_wallet = ?)');
+    args.push(wallet, wallet);
+  }
+  if (type) {
+    whereClauses.push('type = ?');
+    args.push(type);
+  }
+  if (status) {
+    whereClauses.push('status = ?');
+    args.push(status);
+  }
+  
+  const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+  
+  // Get total count
+  const countResult = await db.execute({
+    sql: `SELECT COUNT(*) as count FROM transactions ${whereClause}`,
+    args,
+  });
+  const total = Number((countResult.rows[0] as any).count);
+  
+  // Get paginated results
+  const result = await db.execute({
+    sql: `SELECT * FROM transactions ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    args: [...args, limit, offset],
+  });
+  
+  return { 
+    transactions: result.rows as unknown as Transaction[], 
+    total 
+  };
+}

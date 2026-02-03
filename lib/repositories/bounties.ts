@@ -188,3 +188,57 @@ export async function releaseClaim(bountyId: string): Promise<boolean> {
   });
   return result.rowsAffected > 0;
 }
+
+// Expire all bounties past their deadline that are still open
+export async function expireOldBounties(): Promise<number> {
+  const db = getDb();
+  const now = new Date().toISOString();
+  
+  const result = await db.execute({
+    sql: `UPDATE bounties SET status = 'expired' WHERE status = 'open' AND deadline < ?`,
+    args: [now],
+  });
+  
+  return result.rowsAffected;
+}
+
+// Release all claims that have exceeded their time limit
+export async function releaseExpiredClaims(): Promise<number> {
+  const db = getDb();
+  const now = new Date().toISOString();
+  
+  const result = await db.execute({
+    sql: `UPDATE bounties 
+          SET status = 'open', claimed_by = NULL, claimed_at = NULL, claim_expires_at = NULL
+          WHERE status = 'claimed' AND claim_expires_at < ?`,
+    args: [now],
+  });
+  
+  return result.rowsAffected;
+}
+
+// Get bounties by status for admin/reporting
+export async function getBountiesByStatus(): Promise<Record<BountyStatus, number>> {
+  const db = getDb();
+  
+  const result = await db.execute({
+    sql: `SELECT status, COUNT(*) as count FROM bounties GROUP BY status`,
+    args: [],
+  });
+  
+  const counts: Record<string, number> = {
+    open: 0,
+    claimed: 0,
+    submitted: 0,
+    resolved: 0,
+    expired: 0,
+    disputed: 0,
+  };
+  
+  for (const row of result.rows) {
+    const r = row as unknown as { status: string; count: number };
+    counts[r.status] = r.count;
+  }
+  
+  return counts as Record<BountyStatus, number>;
+}

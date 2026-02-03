@@ -90,3 +90,51 @@ export async function getSubmissionByBounty(bountyId: string): Promise<(Submissi
     ...rowToSubmission(row),
   };
 }
+
+export async function listSubmissions(options: {
+  bounty_id?: string;
+  agent_wallet?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ submissions: (Submission & { id: string; bounty_id: string })[]; total: number }> {
+  const db = getDb();
+  const { bounty_id, agent_wallet, limit = 20, offset = 0 } = options;
+  
+  let whereClauses: string[] = [];
+  let args: any[] = [];
+  
+  if (bounty_id) {
+    whereClauses.push('bounty_id = ?');
+    args.push(bounty_id);
+  }
+  if (agent_wallet) {
+    whereClauses.push('agent_wallet = ?');
+    args.push(agent_wallet);
+  }
+  
+  const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+  
+  // Get total count
+  const countResult = await db.execute({
+    sql: `SELECT COUNT(*) as count FROM submissions ${whereClause}`,
+    args,
+  });
+  const total = Number((countResult.rows[0] as any).count);
+  
+  // Get paginated results
+  const result = await db.execute({
+    sql: `SELECT * FROM submissions ${whereClause} ORDER BY submitted_at DESC LIMIT ? OFFSET ?`,
+    args: [...args, limit, offset],
+  });
+  
+  const submissions = result.rows.map((row) => {
+    const r = row as unknown as SubmissionRow;
+    return {
+      id: r.id,
+      bounty_id: r.bounty_id,
+      ...rowToSubmission(r),
+    };
+  });
+  
+  return { submissions, total };
+}

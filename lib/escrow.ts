@@ -1,4 +1,5 @@
 import { 
+  ESCROW_WALLET,
   TREASURY_WALLET,
   CREATION_FEE_PERCENT,
   PAYOUT_FEE_PERCENT,
@@ -8,6 +9,8 @@ import {
   verifyDeposit,
   generateDepositInstructions,
 } from './solana';
+
+export { ESCROW_WALLET, TREASURY_WALLET };
 import { createTransaction, updateTransactionStatus } from './repositories/transactions';
 import type { Bounty, Reward } from './types';
 

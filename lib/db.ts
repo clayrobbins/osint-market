@@ -127,6 +127,25 @@ export async function initDb() {
   await client.execute(`CREATE INDEX IF NOT EXISTS idx_badges_wallet ON badges(wallet)`);
   await client.execute(`CREATE INDEX IF NOT EXISTS idx_reputation_earnings ON reputation(total_earnings DESC)`);
   
+  // Disputes table
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS disputes (
+      id TEXT PRIMARY KEY,
+      bounty_id TEXT NOT NULL,
+      agent_wallet TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      evidence TEXT NOT NULL DEFAULT '[]',
+      status TEXT NOT NULL DEFAULT 'pending',
+      admin_notes TEXT,
+      created_at TEXT NOT NULL,
+      resolved_at TEXT,
+      FOREIGN KEY (bounty_id) REFERENCES bounties(id)
+    )
+  `);
+  
+  await client.execute(`CREATE INDEX IF NOT EXISTS idx_disputes_bounty ON disputes(bounty_id)`);
+  await client.execute(`CREATE INDEX IF NOT EXISTS idx_disputes_status ON disputes(status)`);
+  
   console.log('Database initialized');
 }
 

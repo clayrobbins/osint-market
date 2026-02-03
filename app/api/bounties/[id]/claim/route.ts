@@ -12,8 +12,8 @@ async function ensureDb() {
   }
 }
 
-// Require auth in production
-const REQUIRE_AUTH = process.env.NODE_ENV === 'production';
+// Always require auth (can be disabled with SKIP_AUTH=true for testing)
+const REQUIRE_AUTH = process.env.SKIP_AUTH !== 'true';
 
 export async function POST(
   request: NextRequest,

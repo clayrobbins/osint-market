@@ -16,7 +16,7 @@ export function sanitizeInput(text: string): string {
     // Remove control characters
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
     // Remove potential injection markers
-    .replace(/---\s*(SYSTEM|OVERRIDE|IMPORTANT|IGNORE|ADMIN|INSTRUCTION).*?---/gis, '[REDACTED]')
+    .replace(/---\s*(SYSTEM|OVERRIDE|IMPORTANT|IGNORE|ADMIN|INSTRUCTION)[\s\S]*?---/gi, '[REDACTED]')
     // Remove XML-like tags that could confuse the model
     .replace(/<\/?(?:system|instruction|override|admin|ignore)[^>]*>/gi, '[REDACTED]')
     // Limit length to prevent token overflow

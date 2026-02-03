@@ -1,12 +1,21 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 import { initDb } from '@/lib/db';
 import { createBounty } from '@/lib/repositories/bounties';
 
-// Development only - seed demo bounties
-export async function POST() {
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'dev-admin-secret';
+
+// Seed demo bounties - requires admin_secret in production
+export async function POST(request: NextRequest) {
   if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
+    try {
+      const body = await request.json();
+      if (body?.admin_secret !== ADMIN_SECRET) {
+        return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
+      }
+    } catch {
+      return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
+    }
   }
   
   await initDb();

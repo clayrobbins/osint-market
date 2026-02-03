@@ -44,11 +44,13 @@ function rowToBounty(row: BountyRow): Bounty {
 export async function listBounties(options: {
   status?: BountyStatus | 'all';
   posterWallet?: string;
+  difficulty?: 'easy' | 'medium' | 'hard' | 'expert';
+  tags?: string[];
   limit?: number;
   offset?: number;
 }): Promise<{ bounties: Bounty[]; total: number }> {
   const db = getDb();
-  const { status = 'open', posterWallet, limit = 20, offset = 0 } = options;
+  const { status = 'open', posterWallet, difficulty, tags, limit = 20, offset = 0 } = options;
   
   let whereClause = '';
   const params: (string | number)[] = [];
@@ -61,6 +63,18 @@ export async function listBounties(options: {
   if (posterWallet) {
     whereClause += whereClause ? ' AND poster_wallet = ?' : 'WHERE poster_wallet = ?';
     params.push(posterWallet);
+  }
+  
+  if (difficulty) {
+    whereClause += whereClause ? ' AND difficulty = ?' : 'WHERE difficulty = ?';
+    params.push(difficulty);
+  }
+  
+  // Tags filter - check if any of the provided tags match (using JSON contains for SQLite)
+  if (tags && tags.length > 0) {
+    const tagConditions = tags.map(() => "tags LIKE ?").join(' OR ');
+    whereClause += whereClause ? ` AND (${tagConditions})` : `WHERE (${tagConditions})`;
+    tags.forEach(tag => params.push(`%"${tag}"%`));
   }
   
   // Get total count

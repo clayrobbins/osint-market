@@ -19,11 +19,15 @@ export async function GET(request: NextRequest) {
   
   const searchParams = request.nextUrl.searchParams;
   const status = (searchParams.get('status') || 'open') as BountyStatus | 'all';
+  const difficulty = searchParams.get('difficulty') as 'easy' | 'medium' | 'hard' | 'expert' | null;
+  const tags = searchParams.get('tags')?.split(',').map(t => t.trim()).filter(Boolean) || null;
   const page = parseInt(searchParams.get('page') || '1');
   const per_page = parseInt(searchParams.get('per_page') || '20');
   
   const { bounties, total } = await listBounties({
     status,
+    difficulty: difficulty || undefined,
+    tags: tags || undefined,
     limit: per_page,
     offset: (page - 1) * per_page,
   });
@@ -42,7 +46,22 @@ export async function POST(request: NextRequest) {
   await ensureDb();
   
   try {
-    const body: CreateBountyRequest & { escrow_tx?: string } = await request.json();
+    const body: CreateBountyRequest & { escrow_tx?: string; poster_wallet?: string } = await request.json();
+    
+    // Validate required fields
+    if (!body.question || body.question.trim().length < 10) {
+      return NextResponse.json(
+        { error: 'Question is required and must be at least 10 characters' },
+        { status: 400 }
+      );
+    }
+    
+    if (!body.reward || !body.reward.amount || !body.reward.token) {
+      return NextResponse.json(
+        { error: 'Reward is required with amount and token (e.g., {"amount": 0.5, "token": "SOL"})' },
+        { status: 400 }
+      );
+    }
     
     // Validate minimum bounty (0.1 SOL)
     if (body.reward.token === 'SOL' && body.reward.amount < FEE_STRUCTURE.minimumSol) {
@@ -52,18 +71,27 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const poster_wallet = request.headers.get('x-wallet-address');
+    // Get poster wallet from header or body
+    const poster_wallet = request.headers.get('x-wallet-address') || body.poster_wallet;
     
     if (!poster_wallet) {
       return NextResponse.json(
-        { error: 'Missing x-wallet-address header' },
+        { error: 'Missing x-wallet-address header or poster_wallet in body' },
         { status: 400 }
       );
     }
     
+    // Apply defaults for optional fields
+    const deadline = body.deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // Default: 7 days
+    const difficulty = body.difficulty || 'medium';
+    const tags = body.tags || [];
+    
     // Create bounty first (to get ID)
     const bounty = await createBounty({
       ...body,
+      deadline,
+      difficulty,
+      tags,
       poster_wallet,
     });
     

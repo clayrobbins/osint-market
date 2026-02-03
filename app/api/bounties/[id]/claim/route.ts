@@ -23,11 +23,18 @@ export async function POST(
   const { id } = params;
   
   try {
-    const body: ClaimRequest & { message?: string } = await request.json();
+    const body: ClaimRequest & { message?: string; hunter_wallet?: string } = await request.json();
+    
+    // Accept both agent_wallet and hunter_wallet for backwards compatibility
+    const walletAddress = body.agent_wallet || body.hunter_wallet;
     
     // Validate wallet address
-    if (!isValidSolanaAddress(body.agent_wallet)) {
-      return NextResponse.json({ error: 'Invalid wallet address' }, { status: 400 });
+    if (!walletAddress) {
+      return NextResponse.json({ error: 'Missing agent_wallet or hunter_wallet in request body' }, { status: 400 });
+    }
+    
+    if (!isValidSolanaAddress(walletAddress)) {
+      return NextResponse.json({ error: `Invalid wallet address: ${walletAddress}` }, { status: 400 });
     }
     
     // Verify wallet signature (required in production)
@@ -38,7 +45,7 @@ export async function POST(
         }, { status: 401 });
       }
       
-      const authResult = authenticate(body.agent_wallet, body.message, body.signature);
+      const authResult = authenticate(walletAddress, body.message, body.signature);
       if (!authResult.authenticated) {
         return NextResponse.json({ 
           error: authResult.error || 'Authentication failed' 
@@ -56,7 +63,7 @@ export async function POST(
     }
     
     // Check if agent already has a claimed bounty
-    const existingClaim = await getClaimedBountyByAgent(body.agent_wallet);
+    const existingClaim = await getClaimedBountyByAgent(walletAddress);
     if (existingClaim) {
       return NextResponse.json({ 
         error: 'You already have a claimed bounty. Complete or forfeit it first.',
@@ -67,7 +74,7 @@ export async function POST(
     // Set claim expiry (48 hours)
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
     
-    const success = await claimBounty(id, body.agent_wallet, expiresAt);
+    const success = await claimBounty(id, walletAddress, expiresAt);
     
     if (!success) {
       return NextResponse.json({ error: 'Failed to claim bounty' }, { status: 500 });

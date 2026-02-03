@@ -231,11 +231,11 @@ export async function verifyDeposit(
     const preBalances = tx.meta.preBalances;
     const postBalances = tx.meta.postBalances;
     
-    // Get escrow account index
+    // Get escrow account index (deposits go to ESCROW_WALLET)
     const accountKeys = tx.transaction.message.getAccountKeys();
     let escrowIndex = -1;
     for (let i = 0; i < accountKeys.length; i++) {
-      if (accountKeys.get(i)?.equals(TREASURY_WALLET)) {
+      if (accountKeys.get(i)?.equals(ESCROW_WALLET)) {
         escrowIndex = i;
         break;
       }
@@ -272,7 +272,7 @@ export function generateDepositInstructions(
   const { feeAmount, netAmount } = calculateFees(amount, CREATION_FEE_PERCENT);
   
   return {
-    recipient: TREASURY_WALLET.toBase58(),
+    recipient: ESCROW_WALLET.toBase58(), // Deposits go to escrow, fees route to treasury on payout
     amount: amount, // User sends full amount, fee taken on deposit
     token,
     memo: `OSINT.market bounty deposit (${netAmount} net after ${feeAmount} fee)`,

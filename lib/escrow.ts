@@ -57,26 +57,26 @@ export async function processDeposit(
     return { success: false, error: verification.error || 'Deposit verification failed' };
   }
   
-  // Record the escrow deposit
+  // Record the escrow deposit (funds go to escrow wallet)
   const depositRecord = await createTransaction({
     type: 'escrow_deposit',
     bounty_id: bountyId,
     amount: netAmount,
     token: reward.token,
     from_wallet: posterWallet,
-    to_wallet: TREASURY_WALLET.toBase58(),
+    to_wallet: ESCROW_WALLET.toBase58(),
     tx_signature: depositTxSignature,
     status: 'confirmed',
   });
   
-  // Record the fee collection
+  // Record the fee collection (creation fee stays in escrow, routed to treasury on payout)
   await createTransaction({
     type: 'fee_collection',
     bounty_id: bountyId,
     amount: feeAmount,
     token: reward.token,
     from_wallet: posterWallet,
-    to_wallet: TREASURY_WALLET.toBase58(),
+    to_wallet: ESCROW_WALLET.toBase58(), // Fee held in escrow until payout
     fee_amount: feeAmount,
     tx_signature: depositTxSignature,
     status: 'confirmed',
@@ -170,7 +170,7 @@ export async function processRefund(
     bounty_id: bounty.id,
     amount: escrowedAmount,
     token: bounty.reward.token,
-    from_wallet: TREASURY_WALLET.toBase58(),
+    from_wallet: ESCROW_WALLET.toBase58(),
     to_wallet: bounty.poster_wallet,
     tx_signature: transfer.signature,
     status: 'confirmed',

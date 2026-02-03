@@ -17,7 +17,7 @@ import bs58 from 'bs58';
 
 // Constants - use env var for escrow wallet, fallback to hardcoded
 export const ESCROW_WALLET = new PublicKey(
-  process.env.ESCROW_WALLET_ADDRESS || 'CZqFagtQbJgivaEGfojMDoehC6YjxF5QKzbsJ7NnF2Mp'
+  process.env.ESCROW_WALLET_ADDRESS || 'EwwpAe2XkBbMAftrX9m1PEu3mEnL6Gordc49EWKRURau'
 );
 export const TREASURY_WALLET = ESCROW_WALLET; // Alias for backwards compat
 export const CREATION_FEE_PERCENT = 0.025; // 2.5%

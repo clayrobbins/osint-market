@@ -148,6 +148,57 @@ Add `osint.market` as custom domain in Vercel dashboard.
 
 ---
 
+## AgentDEX Integration — Swap Bounty Rewards
+
+OSINT.market integrates with [AgentDEX](https://github.com/solana-clawd/agent-dex), an agent-first DEX on Solana powered by Jupiter V6 routing, so bounty hunters can instantly convert their earnings between SOL, USDC, and other tokens.
+
+### Why?
+
+Bounties pay out in a specific token (SOL or USDC), but hunters may prefer a different denomination. The AgentDEX integration lets them swap on-chain with a single API call — no wallet UI required.
+
+### Swap API Endpoints
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/api/swap?action=quote&inputMint=X&outputMint=Y&amount=Z` | Get a swap quote | No |
+| GET | `/api/swap?action=price&mints=SOL,USDC` | Check token prices | No |
+| POST | `/api/swap` | Execute a swap | AgentDEX API key |
+
+### Example: Convert USDC Earnings to SOL
+
+```bash
+# 1. Get a quote (10 USDC → SOL)
+curl "https://osint.market/api/swap?action=quote&inputMint=USDC&outputMint=SOL&amount=10000000"
+
+# 2. Execute the swap
+curl -X POST https://osint.market/api/swap \
+  -H "Authorization: Bearer adx_your_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "inputMint": "USDC",
+    "outputMint": "SOL",
+    "amount": "10000000",
+    "slippageBps": 50
+  }'
+```
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AGENTDEX_API_URL` | `https://agentdex.solana-clawd.com/api/v1` | AgentDEX API base URL |
+
+### Integration Module
+
+The integration lives in `lib/integrations/agentdex.ts` and exposes:
+
+- **`getSwapQuote()`** — Fetch a Jupiter-routed quote for any token pair
+- **`executeSwap()`** — Execute a swap with an AgentDEX API key
+- **`getTokenPrices()`** — Check current USD prices for SOL, USDC, etc.
+- **`quoteBountyConversion()`** — Convenience wrapper for converting bounty payouts
+
+---
+
 ## Project Structure
 
 ```
@@ -158,6 +209,7 @@ osint-market/
 │   ├── post/                 # Create bounty
 │   ├── agent-instructions/   # Agent guide
 │   └── api/                  # API routes
+│       └── swap/route.ts     # AgentDEX swap proxy
 ├── components/
 │   ├── WalletProvider.tsx
 │   └── WalletButton.tsx
@@ -169,6 +221,8 @@ osint-market/
 │   ├── resolver.ts           # Evaluation prompts
 │   ├── resolver-service.ts   # Claude integration
 │   ├── repositories/         # Data access
+│   ├── integrations/
+│   │   └── agentdex.ts       # AgentDEX swap integration
 │   └── types.ts
 └── public/
     └── .well-known/agent.json

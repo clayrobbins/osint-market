@@ -1,3 +1,35 @@
+// Openfort integration as requested in issue #2
+const OPENFORT_API_URL = 'https://api.openfort.xyz/v1';
+const OPENFORT_SECRET_KEY = process.env.OPENFORT_SECRET_KEY || '';
+
+export const openfort = {
+  wallets: {
+    create: async ({ type }: { type: string }) => {
+      const res = await fetch(`${OPENFORT_API_URL}/wallets`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENFORT_SECRET_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ type })
+      });
+      return res.json();
+    }
+  },
+  transactions: {
+    send: async ({ to, from, value, gasSponsored }: any) => {
+      const res = await fetch(`${OPENFORT_API_URL}/transactions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENFORT_SECRET_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ to, from, value, gasSponsored })
+      });
+      return res.json();
+    }
+  }
+};
 import { 
   ESCROW_WALLET,
   TREASURY_WALLET,
